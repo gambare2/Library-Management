@@ -1,65 +1,241 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import Link from "next/link";
+import {
+  AppBar,
+  Box,
+  Toolbar,
+  Typography,
+  IconButton,
+  Button,
+  Drawer,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  useMediaQuery,
+} from "@mui/material";
+
+import MenuIcon from "@mui/icons-material/Menu";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
+import EventSeatIcon from "@mui/icons-material/EventSeat";
+import PersonIcon from "@mui/icons-material/Person";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import BookOnlineIcon from "@mui/icons-material/BookOnline";
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import LoginIcon from '@mui/icons-material/Login';
+import AppRegistrationIcon from '@mui/icons-material/AppRegistration';
+
+import useAuth from "@/app/hooks/useAuth";
+
+export default function HomePage() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [roleDrawer, setRoleDrawer] = useState<"student" | "admin" | null>(
+    null
+  );
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const user = useAuth();
+
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  const toggleDrawer = (open: boolean, role?: "student" | "admin") => {
+    setDrawerOpen(open);
+    setRoleDrawer(role ?? null);
+  };
+
+  /** 🔹 TOP NAVIGATION LINKS */
+  const topNavLinks = [
+    { label: "Home", href: "/", icon: <DashboardIcon /> },
+    { label: "About", href: "/about", icon: <LibraryBooksIcon /> },
+    { label: "Pricing", href: "/pricing", icon: <EventSeatIcon /> },
+    { label: "Contact", href: "/contact", icon: <PersonIcon /> },
+  ];
+
+  /** 🔹 STUDENT DRAWER LINKS */
+  const studentLinks = [
+    { label: "Book a Seat", href: "/student/book-seat", icon: <EventSeatIcon /> },
+    { label: "My Bookings", href: "/student/bookings", icon: <BookOnlineIcon /> },
+    { label: "Attendance", href: "/student/attendance", icon: <ScheduleIcon /> },
+  ];
+  const auth = [
+    { label: "Sign In", href: "/pages/login", icon: <LoginIcon /> },
+    { label: "Sign Up", href: "/pages/register", icon: <AppRegistrationIcon /> }
+  ]
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <Box sx={{ flexGrow: 1 }}>
+      {/* 🔵 NAVBAR */}
+      <AppBar position="static" sx={{ background: "#1a237e" }}>
+        <Toolbar>
+          {isMobile && (
+            <IconButton color="inherit" onClick={() => setMobileMenu(true)}>
+              <MenuIcon />
+            </IconButton>
+          )}
+
+          <Typography variant="h6" component={Link} href="/" sx={{ flexGrow: 1 }}>
+            Study Center Management
+          </Typography>
+
+          {/* Desktop Navigation Buttons */}
+          {!isMobile &&
+            topNavLinks.map((item) => (
+              <Button key={item.label} color="inherit" href={item.href}>
+                {item.label}
+              </Button>
+            ))}
+          {/* Student Drawer Button */}
+          {!isMobile && (
+            <Button
+              color="inherit"
+              onClick={() => toggleDrawer(true, "student")}
+              startIcon={<DashboardIcon />}
+              sx={{ ml: 2 }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Student
+            </Button>
+          )}
+
+
+          {/* Admin Drawer */}
+          {/* {!isMobile && (
+            <Button
+              color="inherit"
+              onClick={() => toggleDrawer(true, "admin")}
+              startIcon={<AdminPanelSettingsIcon />}
+              sx={{ ml: 2 }}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+              Admin
+            </Button>
+          )} */}
+          {/* 🔵 SHOW SIGN IN / SIGN UP ONLY IF USER IS NOT LOGGED IN */}
+          {!isMobile && !user && (
+            <>
+              {auth.map((item) => (
+                <Button
+                  key={item.label}
+                  component={Link}
+                  href={item.href}
+                  startIcon={item.icon}
+                  color="primary"
+                  variant="contained"
+                  sx={{ ml: 2, textTransform: "none", borderRadius: 4 }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </>
+          )}
+
+          {/* 🔵 SHOW PROFILE + LOGOUT WHEN USER IS LOGGED IN */}
+          {!isMobile && user && (
+            <>
+              <Typography sx={{ ml: 3, mr: 2 }}>
+                Welcome, {user?.name || user?.email}
+              </Typography>
+              <Link href=""><AccountCircleIcon/></Link>
+              <Button
+                color="error"
+                variant="outlined"
+                sx={{ ml: 1 }}
+                onClick={() => {
+                  localStorage.removeItem("user");
+                  window.location.reload();
+                }}
+              >
+                Logout
+              </Button>
+            </>
+          )}
+
+        </Toolbar>
+      </AppBar>
+
+      {/* 🔵 MOBILE MENU DRAWER */}
+      <Drawer anchor="left" open={mobileMenu} onClose={() => setMobileMenu(false)}>
+        <Box sx={{ width: 260 }}>
+
+          <Typography variant="h6" sx={{ p: 2, fontWeight: 700 }}>
+            Menu
+          </Typography>
+
+          <Divider />
+          {/* Nav Links  */}
+          {topNavLinks.map((item) => (
+            <ListItemButton key={item.label} component={Link} href={item.href}>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          ))}
+
+          <Divider />
+
+          <ListItemButton onClick={() => { setMobileMenu(false); toggleDrawer(true, "student"); }}>
+            <ListItemIcon><DashboardIcon /></ListItemIcon>
+            <ListItemText primary="Student Dashboard" />
+          </ListItemButton>
+
+          {/* <ListItemButton onClick={() => { setMobileMenu(false); toggleDrawer(true, "admin"); }}>
+            <ListItemIcon><AdminPanelSettingsIcon /></ListItemIcon>
+            <ListItemText primary="Admin Panel" />
+          </ListItemButton> */}
+        </Box>
+
+      </Drawer>
+
+      {/* 🔵 STUDENT DRAWER */}
+      <Drawer
+        anchor="left"
+        open={drawerOpen && roleDrawer === "student"}
+        onClose={() => toggleDrawer(false)}
+      >
+        <Box sx={{ width: 260 }}>
+          <Typography variant="h6" sx={{ p: 2, fontWeight: 700 }}>
+            Student Dashboard
+          </Typography>
+          <Divider />
+
+          {studentLinks.map((item) => (
+            <ListItemButton key={item.label} component={Link} href={item.href}>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          ))}
+        </Box>
+      </Drawer>
+
+      {/* 🔵 ADMIN DRAWER
+      <Drawer
+        anchor="left"
+        open={drawerOpen && roleDrawer === "admin"}
+        onClose={() => toggleDrawer(false)}
+      >
+        <Box sx={{ width: 260 }}>
+          <Typography variant="h6" sx={{ p: 2, fontWeight: 700 }}>
+            Admin Panel
+          </Typography>
+          <Divider />
+
+          {adminLinks.map((item) => (
+            <ListItemButton key={item.label} component={Link} href={item.href}>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          ))}
+        </Box>
+      </Drawer> */}
+
+      {/* 🔵 HOME PAGE BODY */}
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography variant="h3" fontWeight={700} color="#1a237e">
+          Welcome to the Study Center
+        </Typography>
+
+        <Typography variant="h6" sx={{ mt: 2, color: "#424242" }}>
+          Book seats, track attendance, manage subscriptions — all in one place.
+        </Typography>
+      </Box>
+    </Box>
   );
 }
