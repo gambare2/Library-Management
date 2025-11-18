@@ -1,60 +1,63 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import admin from '@/app/lib/FirebaseAdmin'; // your firebase-admin setup
+import admin from "@/app/lib/FirebaseAdmin";  
+import { NextResponse } from "next/server";
 
-type Data = {
-  success: boolean;
-  message?: string;
-};
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Data>
-) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, message: 'Method not allowed' });
-  }
-
-  const { email, password, phoneNumber, name, provider, idToken } = req.body;
-
+export async function POST(req: Request) {
   try {
+    const body = await req.json();
+    const { email, password, phoneNumber, name, provider, idToken } = body;
+
     let userRecord;
 
-    if (provider === 'google' || idToken) {
+    if (provider === "google" || idToken) {
       // Verify Google ID Token
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       userRecord = await admin.auth().getUser(decodedToken.uid);
+
     } else if (email && password) {
-      // Create user with email & password
+      // Email + password signup
       userRecord = await admin.auth().createUser({
         email,
         password,
         phoneNumber: phoneNumber || undefined,
         displayName: name,
       });
+
     } else if (phoneNumber) {
-      // Create user with phone number only
-      userRecord = await admin.auth().createUser({ phoneNumber, displayName: name });
+      // Phone only
+      userRecord = await admin.auth().createUser({
+        phoneNumber,
+        displayName: name,
+      });
+
     } else {
-      return res.status(400).json({ success: false, message: 'Missing fields' });
+      return NextResponse.json(
+        { success: false, message: "Missing fields" },
+        { status: 400 }
+      );
     }
 
-    // Create Firestore user document
-    const userRef = admin.firestore().collection('users').doc(userRecord.uid);
+    // Store in Firestore
+    const userRef = admin.firestore().collection("users").doc(userRecord.uid);
+
     await userRef.set(
       {
         uid: userRecord.uid,
         name: userRecord.displayName || name || null,
         email: userRecord.email || null,
         phoneNumber: userRecord.phoneNumber || null,
-        provider: provider || 'custom',
+        provider: provider || "custom",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
 
-    return res.status(200).json({ success: true });
+    return NextResponse.json({ success: true }, { status: 200 });
+
   } catch (error: any) {
-    console.error('REGISTER API ERROR:', error);
-    return res.status(500).json({ success: false, message: error.message });
+    console.error("REGISTER API ERROR:", error);
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
   }
 }
