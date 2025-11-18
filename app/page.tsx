@@ -164,12 +164,80 @@ export default function HomePage() {
       <Drawer anchor="left" open={mobileMenu} onClose={() => setMobileMenu(false)}>
         <Box sx={{ width: 260 }}>
 
-          <Typography variant="h6" sx={{ p: 2, fontWeight: 700 }}>
-            Menu
+          <Typography variant="h6" sx={{ p: 2, fontWeight: 700, background: "#1a237e", color: "white" }}>
+            Student dashboard
           </Typography>
 
-          <Divider />
-          {/* Nav Links  */}
+          {/* 🔥 IF USER IS LOGGED IN — SHOW PROFILE + LOGOUT */}
+          {user && (
+            <Box sx={{ px: 2, py: 1, display: "flex", alignItems: "center", gap: 2 }}>
+              <AccountCircleIcon sx={{ fontSize: 40 }} />
+              <Box>
+                <Typography sx={{ fontWeight: 600 }}>{user?.name || user?.email}</Typography>
+                <Typography sx={{ fontSize: 12, opacity: 0.7 }}>
+                  Logged In
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {user && (
+            <Button
+              fullWidth
+              color="error"
+              variant="outlined"
+              sx={{ px: 2, mt: 1, borderRadius: 3 }}
+              onClick={() => {
+                // Clear client cookies
+                document.cookie = "study_auth=; Max-Age=0; path=/;";
+                document.cookie = "study_user=; Max-Age=0; path=/;";
+
+                // Clear local storage
+                localStorage.removeItem("user");
+
+                // Redirect
+                window.location.href = "/";
+              }}
+            >
+              Logout
+            </Button>
+          )}
+
+          {!user && (
+            <Box sx={{ px: 2, py: 1 }}>
+              {auth.map((item) => (
+                <Button
+                  key={item.label}
+                  component={Link}
+                  href={item.href}
+                  fullWidth
+                  startIcon={item.icon}
+                  color="primary"
+                  variant="contained"
+                  sx={{ my: 1, borderRadius: 4, textTransform: "none" }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </Box>
+          )}
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Student Dashboard */}
+          <ListItemButton
+            onClick={() => {
+              setMobileMenu(false);
+              toggleDrawer(true, "student");
+            }}
+          >
+            <ListItemIcon><DashboardIcon /></ListItemIcon>
+            <ListItemText primary="Student Dashboard" />
+          </ListItemButton>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Nav Links */}
           {topNavLinks.map((item) => (
             <ListItemButton key={item.label} component={Link} href={item.href}>
               <ListItemIcon>{item.icon}</ListItemIcon>
@@ -177,19 +245,9 @@ export default function HomePage() {
             </ListItemButton>
           ))}
 
-          <Divider />
+          <Divider sx={{ my: 2 }} />
 
-          <ListItemButton onClick={() => { setMobileMenu(false); toggleDrawer(true, "student"); }}>
-            <ListItemIcon><DashboardIcon /></ListItemIcon>
-            <ListItemText primary="Student Dashboard" />
-          </ListItemButton>
-
-          {/* <ListItemButton onClick={() => { setMobileMenu(false); toggleDrawer(true, "admin"); }}>
-            <ListItemIcon><AdminPanelSettingsIcon /></ListItemIcon>
-            <ListItemText primary="Admin Panel" />
-          </ListItemButton> */}
         </Box>
-
       </Drawer>
 
       {/* 🔵 STUDENT DRAWER */}
