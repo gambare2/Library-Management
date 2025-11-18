@@ -1,34 +1,51 @@
 import { NextResponse } from "next/server";
-import { adminAuth } from "@/app/lib/FirebaseAdmin";
+import admin from "@/app/lib/FirebaseAdmin";
 import { serialize } from "cookie";
+import connectDB from "@/app/lib/db";
+import Student from "@/app/models/Student";
 
 export async function POST(req: Request) {
+  console.log("📩 LOGIN API CALLED");
+
   try {
-    const clientIp =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      "unknown";
+    await connectDB();
+    console.log("✅ MongoDB Connected");
 
-    const ALLOWED_IPS = ["127.0.0.1", "::1", "103.165.103.25"];
+    const body = await req.json();
+    const { idToken } = body;
 
-    if (!ALLOWED_IPS.includes(clientIp)) {
-      return NextResponse.json(
-        { error: "Login allowed only on office WiFi" },
-        { status: 403 }
-      );
+    if (!idToken) return NextResponse.json({ error: "Token missing" }, { status: 400 });
+
+    // ---- Verify Firebase token ----
+    let decoded;
+    try {
+      decoded = await admin.auth().verifyIdToken(idToken);
+    } catch (error) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const { idToken } = await req.json();
+    const uid = decoded.uid;
+    const email = decoded.email || "";
+    const name = decoded.name || "";
+    const provider = decoded.firebase?.sign_in_provider || "unknown";
 
-    // Verify token using Firebase Admin
-    const decoded = await adminAuth.verifyIdToken(idToken);
+    // ---- MongoDB Student ----
+    let student = await Student.findOne({ firebaseUID: uid });
+    if (!student) {
+      student = await Student.create({
+        firebaseUID: uid,
+        name,
+        email,
+        studentId: "STU-" + Math.floor(100000 + Math.random() * 900000),
+        macAddresses: [],
+      });
+      console.log("✅ New Student Created:", student.studentId);
+    } else {
+      console.log("✅ Existing Student Found:", student.studentId);
+    }
 
-    const safeUser = {
-      uid: decoded.uid,
-      email: decoded.email || "",
-      name: decoded.name || "",
-    };
-
+    // ---- Cookies & Response ----
+    const safeUser = { uid, email, name, provider };
     const cookieAuth = serialize("study_auth", idToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -36,7 +53,6 @@ export async function POST(req: Request) {
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-
     const cookieUser = serialize("study_user", JSON.stringify(safeUser), {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
@@ -45,17 +61,18 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    const response = NextResponse.json(
-      { success: true, user: safeUser },
-      { status: 200 }
-    );
+    const response = NextResponse.json({
+      success: true,
+      user: safeUser,
+      studentId: student.studentId,
+    });
 
     response.headers.append("Set-Cookie", cookieAuth);
     response.headers.append("Set-Cookie", cookieUser);
 
     return response;
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Login failed" }, { status: 500 });
+  } catch (error) {
+    console.log("🔥 LOGIN API ERROR:", error);
+    return NextResponse.json({ error: "Login failed", details: String(error) }, { status: 500 });
   }
 }

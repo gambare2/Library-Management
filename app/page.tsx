@@ -55,9 +55,9 @@ export default function HomePage() {
 
   /** 🔹 STUDENT DRAWER LINKS */
   const studentLinks = [
-    { label: "Book a Seat", href: "/student/book-seat", icon: <EventSeatIcon /> },
-    { label: "My Bookings", href: "/student/bookings", icon: <BookOnlineIcon /> },
-    { label: "Attendance", href: "/student/attendance", icon: <ScheduleIcon /> },
+    { label: "Attendance", href: "/pages/dashboard-student/attendance", icon: <ScheduleIcon /> },
+    { label: "Book a Seat", href: "/pages/dashboard-student/seats", icon: <EventSeatIcon /> },
+    { label: "My Bookings", href: "/pages/dashboard-student/booking", icon: <BookOnlineIcon /> },
   ];
   const auth = [
     { label: "Sign In", href: "/pages/login", icon: <LoginIcon /> },
@@ -134,18 +134,26 @@ export default function HomePage() {
               <Typography sx={{ ml: 3, mr: 2 }}>
                 Welcome, {user?.name || user?.email}
               </Typography>
-              <Link href=""><AccountCircleIcon/></Link>
+              <Link href=""><AccountCircleIcon /></Link>
               <Button
                 color="error"
                 variant="outlined"
                 sx={{ ml: 1 }}
                 onClick={() => {
+                  // Clear client cookies
+                  document.cookie = "study_auth=; Max-Age=0; path=/;";
+                  document.cookie = "study_user=; Max-Age=0; path=/;";
+
+                  // Clear local storage
                   localStorage.removeItem("user");
-                  window.location.reload();
+
+                  // Reload page
+                  window.location.href = "/";
                 }}
               >
                 Logout
               </Button>
+
             </>
           )}
 

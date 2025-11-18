@@ -9,17 +9,13 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 
-// -------------------------------
 // 1. GOOGLE LOGIN
-// -------------------------------
 export const loginWithGoogle = async (): Promise<UserCredential> => {
   const provider = new GoogleAuthProvider();
   return await signInWithPopup(auth, provider);
 };
 
-// -------------------------------
 // 2. EMAIL + PASSWORD LOGIN
-// -------------------------------
 export const loginWithEmail = async (
   email: string,
   password: string
@@ -27,9 +23,7 @@ export const loginWithEmail = async (
   return await signInWithEmailAndPassword(auth, email, password);
 };
 
-// -------------------------------
 // 3. SEND OTP (PHONE NUMBER LOGIN)
-// -------------------------------
 export const sendOTP = async (phone: string): Promise<ConfirmationResult> => {
     if (typeof window === "undefined") {
       throw new Error("Cannot run Recaptcha on server");
@@ -46,10 +40,7 @@ export const sendOTP = async (phone: string): Promise<ConfirmationResult> => {
     return await signInWithPhoneNumber(auth, phone, window.recaptchaVerifier);
   };
   
-
-// -------------------------------
 // 4. VERIFY OTP
-// -------------------------------
 export const verifyOTP = async (
   confirmationResult: ConfirmationResult,
   otp: string
@@ -57,9 +48,7 @@ export const verifyOTP = async (
   return await confirmationResult.confirm(otp);
 };
 
-// -------------------------------
 // 5. TYPE FOR GLOBAL WINDOW
-// -------------------------------
 declare global {
   interface Window {
     recaptchaVerifier: RecaptchaVerifier;
