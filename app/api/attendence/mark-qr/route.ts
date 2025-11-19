@@ -5,7 +5,7 @@ import Qrtoken from "@/app/models/Qrtoken";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-    await connectDB;
+    await connectDB();
 
     let student = await getStudentId(req);
     if (Array.isArray(student)) student = student[0];
