@@ -1,133 +1,156 @@
 "use client";
 import dynamic from "next/dynamic";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { auth, loginWithGoogle, sendOTP } from "@/app/lib/auth";
+import {
+  signInWithCredential,
+  PhoneAuthProvider,
+  signInWithEmailAndPassword,
+  type ConfirmationResult,
+} from "firebase/auth";
+import { CircularProgress } from "@mui/material";
 
 const PolygonCard = dynamic(() => import("@/app/components/PolygonCard"), {
   ssr: false,
 });
-import { useState } from "react";
-import { loginWithGoogle, sendOTP } from "@/app/lib/auth";
-import { signInWithCredential, PhoneAuthProvider, signInWithEmailAndPassword, type ConfirmationResult } from "firebase/auth";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-import { auth } from "@/app/lib/FirebaseConfig";
 
 export default function LoginPage() {
   const router = useRouter();
-
   const [step, setStep] = useState<"email" | "phone" | "otp">("email");
+  const [loading, setLoading] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [confirmationResult, setConfirmationResult] =
     useState<ConfirmationResult | null>(null);
 
-  // ================================
-  // EMAIL LOGIN
-  // ================================
-  const handleEmailLogin = async () => {
-    const userCred = await signInWithEmailAndPassword(auth, email, password);
-    const idToken = await userCred.user.getIdToken();
+    const waitCookie = (ms = 300) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
   
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    });
+    // ----------------- LOGIN FUNCTIONS -----------------
+    const handleEmailLogin = async () => {
+      try {
+        setLoading(true);
+        const userCred = await signInWithEmailAndPassword(auth, email, password);
+        const idToken = await userCred.user.getIdToken();
   
-    const data = await res.json();
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken, loginMethod: "email" }),
+          credentials: "include", // ✅ include cookie
+        });
   
-    if (data.success) router.push("/");
-    else alert(data.error);
-  };
+        const data = await res.json();
   
-
-  // ================================
-  // GOOGLE LOGIN
-  // ================================
-// ✅ GOOGLE LOGIN
-const handleGoogleLogin = async () => {
-  try {
-    const result = await loginWithGoogle();       // Firebase Popup Login
-    const idToken = await result.user.getIdToken();   // Get ID Token
-
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),          // Send ONLY token
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      alert("Google Login Successful");
-      router.push("/");
-    } else {
-      alert(data.error);
-    }
-  } catch (err) {
-    console.error("Google login failed:", err);
-    alert("Google login failed");
-  }
-};
-
-  // ================================
-  // PHONE — SEND OTP
-  // ================================
-// ✅ PHONE — SEND OTP
-const handleSendOTP = async () => {
-  try {
-    const result = await sendOTP(phone);  // Firebase Recaptcha + OTP
-    setConfirmationResult(result);
-    setStep("otp");
-  } catch (error) {
-    console.error(error);
-    alert("Failed to send OTP. Try again.");
-  }
-};
-
-  // PHONE — VERIFY OTP
-const handleOTPVerify = async () => {
-  try {
-    if (!confirmationResult) {
-      alert("OTP session expired. Please request again.");
-      return;
-    }
-
-    const credential = PhoneAuthProvider.credential(
-      confirmationResult.verificationId,
-      otp
-    );
-
-    // Sign in using phone OTP
-    const userCred = await signInWithCredential(auth, credential);
-    const idToken = await userCred.user.getIdToken();   // Only token
-
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),                // Send ONLY token
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      alert("Phone Login Successful");
-      router.push("/");
-    } else {
-      alert(data.error);
-    }
-  } catch (error) {
-    console.error(error);
-    alert("OTP verification failed");
-  }
-};
-
+        if (data.success) {
+          await waitCookie();
+          if (data.role === "admin") router.push("/dashboard-admin");
+          else router.push("/pages/dashboard-student");
+        } else {
+          alert(data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Email login failed");
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    const handleGoogleLogin = async () => {
+      try {
+        setLoading(true);
+        const result = await loginWithGoogle();
+        const idToken = await result.user.getIdToken();
+  
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+          credentials: "include", // ✅ include cookie
+        });
+  
+        const data = await res.json();
+  
+        if (data.success) {
+          await waitCookie();
+          if (data.role === "admin") router.push("/dashboard-admin");
+          else router.push("/pages/dashboard-student");
+        } else {
+          alert(data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Google login failed");
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    const handleSendOTP = async () => {
+      try {
+        setLoading(true);
+        const result = await sendOTP(phone);
+        setConfirmationResult(result);
+        setStep("otp");
+      } catch (err) {
+        console.error(err);
+        alert("Failed to send OTP");
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    const handleOTPVerify = async () => {
+      try {
+        if (!confirmationResult) return alert("OTP session expired");
+  
+        setLoading(true);
+        const credential = PhoneAuthProvider.credential(
+          confirmationResult.verificationId,
+          otp
+        );
+  
+        const userCred = await signInWithCredential(auth, credential);
+        const idToken = await userCred.user.getIdToken();
+  
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+          credentials: "include", // ✅ include cookie
+        });
+  
+        const data = await res.json();
+  
+        if (data.success) {
+          await waitCookie();
+          if (data.role === "admin") router.push("/dashboard-admin");
+          else router.push("/pages/dashboard-student");
+        } else {
+          alert(data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("OTP verification failed");
+      } finally {
+        setLoading(false);
+      }
+    };
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-900 to-gray-900 p-6">
+      {loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50">
+          <CircularProgress size={60} />
+        </div>
+      )}
+
       <motion.div
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}

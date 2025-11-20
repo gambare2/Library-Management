@@ -1,4 +1,3 @@
-import Navbar from "@/app/components/Navbar";
 import { Box, Typography } from "@mui/material";
 
 export default function HomePage() {

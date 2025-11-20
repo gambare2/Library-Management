@@ -9,6 +9,8 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 
+export { auth };
+
 // 1. GOOGLE LOGIN
 export const loginWithGoogle = async (): Promise<UserCredential> => {
   const provider = new GoogleAuthProvider();

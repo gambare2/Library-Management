@@ -43,53 +43,57 @@ export default function RegisterPage() {
   // ---------------- EMAIL/PASSWORD REGISTER ----------------
   const handleEmailRegister = async () => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
+      console.log("📤 Sending Email Register Body:", {
+        provider: "email",
+        name,
         email,
         password
-      );
-      const idToken = await userCredential.user.getIdToken(true); // force refresh
-
+      });
+  
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  
       await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, provider: 'email', idToken }),
+        body: JSON.stringify({
+          provider: "email",
+          name,
+          email,
+          password,
+        }),
       });
-
+  
       alert('Registered successfully!');
       router.push('/pages/login');
     } catch (err: any) {
+      console.log("❌ Email Register Error:", err);
       alert(err.message);
     }
   };
-
+  
   // ---------------- GOOGLE REGISTER / LOGIN ----------------
   const handleGoogleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-
-      // Get fresh ID token
+  
       const idToken = await result.user.getIdToken(true);
-
-      // Call login API (it will create Firestore + MongoDB user if missing)
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+  
+      await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "google",
+          idToken
+        }),
       });
-
-      const data = await res.json();
-
-      if (!data.success) throw new Error(data.error || 'Login failed');
-
-      alert(`Logged in as ${data.user.name}`);
-      router.push('/dashboard'); // redirect after login
+  
+      router.push('/pages/login');
     } catch (err: any) {
       alert(err.message);
     }
   };
-
+  
   // ---------------- PHONE REGISTER ----------------
   const setupRecaptcha = () => {
     if (typeof window !== 'undefined' && !window.recaptchaVerifier) {
@@ -115,23 +119,30 @@ export default function RegisterPage() {
 
   const verifyOtp = async () => {
     try {
-      if (!confirmationResult) throw new Error('No OTP sent yet.');
+      if (!confirmationResult) {
+        throw new Error("OTP not sent or expired. Please request again.");
+      }
+  
       const userCredential = await confirmationResult.confirm(otp);
       const idToken = await userCredential.user.getIdToken(true);
-
-      await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: phone, provider: 'phone', idToken }),
+  
+      await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "phone",
+          phoneNumber: phone,
+          idToken,
+        }),
       });
-
-      alert('Phone number registered!');
-      router.push('/pages/login');
+  
+      alert("Phone registered!");
+      router.push("/pages/login");
     } catch (err: any) {
       alert(err.message);
     }
   };
-
+  
   // ---------------- RENDER ----------------
   return (
     <Box className="flex justify-center items-center min-h-screen bg-gray-50 p-4">

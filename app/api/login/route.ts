@@ -1,51 +1,68 @@
+// app/api/login/route.ts
 import { NextResponse } from "next/server";
 import admin from "@/app/lib/FirebaseAdmin";
 import { serialize } from "cookie";
 import connectDB from "@/app/lib/db";
 import Student from "@/app/models/Student";
+import { ADMIN_EMAILS } from "@/app/hooks/useAdminlogin";
+import jwt from "jsonwebtoken";
 
 export async function POST(req: Request) {
-  console.log("📩 LOGIN API CALLED");
-
   try {
     await connectDB();
-    console.log("✅ MongoDB Connected");
 
-    const body = await req.json();
-    const { idToken } = body;
+    const { idToken, loginMethod } = await req.json();
 
-    if (!idToken) return NextResponse.json({ error: "Token missing" }, { status: 400 });
+    if (!idToken) {
+      return NextResponse.json({ error: "Token missing" }, { status: 400 });
+    }
 
     // ---- Verify Firebase token ----
-    let decoded;
-    try {
-      decoded = await admin.auth().verifyIdToken(idToken);
-    } catch (error) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    const uid = decoded.uid;
+    const decoded = await admin.auth().verifyIdToken(idToken);
     const email = decoded.email || "";
+    const uid = decoded.uid;
     const name = decoded.name || "";
-    const provider = decoded.firebase?.sign_in_provider || "unknown";
 
-    // ---- MongoDB Student ----
-    let student = await Student.findOne({ firebaseUID: uid });
-    if (!student) {
-      student = await Student.create({
-        firebaseUID: uid,
-        name,
-        email,
-        studentId: "STU-" + Math.floor(100000 + Math.random() * 900000),
-        macAddresses: [],
-      });
-      console.log("✅ New Student Created:", student.studentId);
-    } else {
-      console.log("✅ Existing Student Found:", student.studentId);
+    // ---- ROLE CHECK ----
+    let role: "admin" | "student" = "student";
+
+    if (loginMethod === "email" && ADMIN_EMAILS.includes(email)) {
+      role = "admin";
     }
 
-    // ---- Cookies & Response ----
-    const safeUser = { uid, email, name, provider };
+    // ---- Generate ADMIN TOKEN if admin ----
+    let adminToken: string | null = null;
+    if (role === "admin") {
+      adminToken = jwt.sign(
+        { uid, email, role: "admin" },
+        process.env.JWT_ADMIN_SECRET!,
+        { expiresIn: "7d" }
+      );
+    }
+
+    // ---- MONGO USER ----
+    let student = await Student.findOne({ firebaseUID: uid });
+
+    if (!student) {
+      if (loginMethod === "email") {
+        // Allow creating email-based student if not exist
+        student = await Student.create({
+          firebaseUID: uid,
+          name,
+          email,
+          studentId: "STU-" + Math.floor(100000 + Math.random() * 900000),
+          provider: "email", // required by schema
+        });
+      } else {
+        // Google/Phone login: do not create student
+        return NextResponse.json(
+          { error: "Student not registered. Please sign up first." },
+          { status: 401 }
+        );
+      }
+    }
+
+    // ---- COOKIES ----
     const cookieAuth = serialize("study_auth", idToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -53,26 +70,45 @@ export async function POST(req: Request) {
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-    const cookieUser = serialize("study_user", JSON.stringify(safeUser), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+
+    const cookieUser = serialize(
+      "study_user",
+      JSON.stringify({ uid, email, name, role, studentId: student.studentId }),
+      {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      }
+    );
+
+    const cookieAdmin =
+      role === "admin"
+        ? serialize("admin_token", adminToken!, {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            path: "/",
+            maxAge: 60 * 60 * 24 * 7,
+          })
+        : null;
 
     const response = NextResponse.json({
       success: true,
-      user: safeUser,
-      studentId: student.studentId,
+      role,
+      user: { uid, email, name },
+      studentId: student?.studentId,
+      adminToken,
     });
 
     response.headers.append("Set-Cookie", cookieAuth);
     response.headers.append("Set-Cookie", cookieUser);
+    if (cookieAdmin) response.headers.append("Set-Cookie", cookieAdmin);
 
     return response;
   } catch (error) {
-    console.log("🔥 LOGIN API ERROR:", error);
-    return NextResponse.json({ error: "Login failed", details: String(error) }, { status: 500 });
+    console.error("Login API error:", error);
+    return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
 }
