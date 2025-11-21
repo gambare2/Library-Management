@@ -47,6 +47,17 @@ export default function BookSeatPage() {
   const [booking, setBooking] = useState(false);
 
   const [myBookedSeatId, setMyBookedSeatId] = useState<string | null>(null);
+  const timeSlots = [
+    "06:00", "07:00", "08:00", "09:00",
+    "10:00", "11:00", "12:00", "13:00",
+    "14:00", "15:00", "16:00", "17:00",
+    "18:00", "19:00", "20:00", "21:00",
+    "22:00"
+  ];
+
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+
 
   useEffect(() => {
     async function fetchStudent() {
@@ -77,23 +88,23 @@ export default function BookSeatPage() {
   // Load seats for selected room
   const loadSeats = async (id: string) => {
     if (!studentId) return;
-  
+
     setRoomId(id);
     setSeats([]);
     setSelectedSeat("");
     setLoadingSeats(true);
-  
+
     try {
       // Fetch seats
       const resSeats = await fetch("/api/admin/seats/list");
       const seatsData = await resSeats.json();
       const roomSeats = (seatsData.seats || []).filter((s: any) => s.roomId === id);
-  
+
       // Fetch bookings
       const resBookings = await fetch(`/api/booking/list?roomId=${id}`);
       const bookingsData = await resBookings.json();
       const bookings = bookingsData.bookings || [];
-  
+
       // Merge
       const updatedSeats = roomSeats.map((s: any) => {
         const booking = bookings.find((b: any) => b.seatId === s._id);
@@ -103,7 +114,7 @@ export default function BookSeatPage() {
           isMine: booking?.studentId === studentId,
         };
       });
-  
+
       setSeats(updatedSeats);
     } catch (err) {
       console.error("Error loading seats:", err);
@@ -111,19 +122,26 @@ export default function BookSeatPage() {
       setLoadingSeats(false);
     }
   };
-  
+
 
   const bookSeat = async () => {
     if (!studentId) return alert("You are not logged in!");
     if (!roomId || !selectedSeat) return alert("Select a room and seat!");
 
     setBooking(true);
+    console.log("Start:", startTime, "End:", endTime);
 
     try {
       const res = await fetch("/api/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId, roomId, seatId: selectedSeat }),
+        body: JSON.stringify({
+          studentId,
+          roomId,
+          seatId: selectedSeat,
+          startTime,
+          endTime,
+        }),
       });
       const data = await res.json();
 
@@ -146,6 +164,25 @@ export default function BookSeatPage() {
       <Typography variant="h5" mb={3} fontWeight={700}>
         Book a Seat
       </Typography>
+      <FormControl fullWidth sx={{ mb: 2 }}>
+        <InputLabel>Start Time</InputLabel>
+        <Select value={startTime} onChange={(e) => setStartTime(e.target.value)}>
+          {timeSlots.map((t) => (
+            <MenuItem key={t} value={t}>{t}</MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      <FormControl fullWidth sx={{ mb: 3 }}>
+        <InputLabel>End Time</InputLabel>
+        <Select value={endTime} onChange={(e) => setEndTime(e.target.value)}>
+          {timeSlots
+            .filter(t => t > startTime) // End must be after start
+            .map((t) => (
+              <MenuItem key={t} value={t}>{t}</MenuItem>
+            ))}
+        </Select>
+      </FormControl>
 
       <FormControl fullWidth sx={{ mb: 3 }}>
         <InputLabel>Select Room</InputLabel>
@@ -212,6 +249,8 @@ export default function BookSeatPage() {
           })}
         </Grid>
       )}
+
+
 
       {selectedSeat && selectedSeat !== myBookedSeatId && (
         <Button
