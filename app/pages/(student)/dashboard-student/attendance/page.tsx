@@ -18,6 +18,8 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [attendanceMessage, setAttendanceMessage] = useState("");
+
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -34,14 +36,19 @@ export default function AttendancePage() {
   async function fetchToday() {
     setLoading(true);
     try {
-      const res = await fetch("/api/attendence/today", {
-        credentials: "include",
-      });
-
+      const res = await fetch("/api/attendence/today", { credentials: "include" });
       const j = await res.json();
-      setAttendance(j.attendance || null);
+
+      if (j.attendance) {
+        setAttendance(j.attendance);
+        setAttendanceMessage("Today’s attendance is marked ✔");
+      } else {
+        setAttendance(null);
+        setAttendanceMessage("❌ Today’s attendance is NOT marked");
+      }
     } catch (e: any) {
       setError(e.message);
+      setAttendanceMessage("❌ Today’s attendance is NOT marked");
     } finally {
       setLoading(false);
     }
@@ -56,10 +63,17 @@ export default function AttendancePage() {
       });
 
       const j = await res.json();
-      if (!j.ok) setError(j.message);
-      else setAttendance(j.attendance);
+
+      if (!j.ok) {
+        setError(j.message);
+        setAttendanceMessage(`❌ Attendance NOT marked — ${j.message}`);
+      } else {
+        setAttendance(j.attendance);
+        setAttendanceMessage("✔ Attendance marked successfully (WiFi)");
+      }
     } catch (e: any) {
       setError(e.message);
+      setAttendanceMessage(`❌ Attendance NOT marked — ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -67,12 +81,12 @@ export default function AttendancePage() {
 
   async function handleScan(tokenValue: string | null) {
     if (!tokenValue) return;
+
     setScannerOpen(false);
     setLoading(true);
 
     try {
       let token = tokenValue;
-
       try {
         const u = new URL(tokenValue);
         token = u.searchParams.get("token") || tokenValue;
@@ -86,10 +100,17 @@ export default function AttendancePage() {
       });
 
       const j = await res.json();
-      if (!j.ok) setError(j.message);
-      else setAttendance(j.attendance);
+
+      if (!j.ok) {
+        setError(j.message);
+        setAttendanceMessage(`❌ Attendance NOT marked — ${j.message}`);
+      } else {
+        setAttendance(j.attendance);
+        setAttendanceMessage("✔ Attendance marked successfully (QR)");
+      }
     } catch (e: any) {
       setError(e.message);
+      setAttendanceMessage(`❌ Attendance NOT marked — ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -199,15 +220,32 @@ export default function AttendancePage() {
 
           {loading ? (
             <CircularProgress sx={{ mt: 2 }} />
-          ) : attendance ? (
-            <Box sx={{ mt: 2 }}>
-              <Typography>Marked: {new Date(attendance.timestamp).toLocaleString()}</Typography>
-              <Typography>Method: {attendance.method}</Typography>
-            </Box>
           ) : (
-            <Typography sx={{ mt: 2 }} color="text.secondary">
-              Not marked yet
-            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 600,
+                  color: attendance ? "#2e7d32" : "#d32f2f",
+                  mb: 1,
+                }}
+              >
+                {attendanceMessage}
+              </Typography>
+
+              {attendance && (
+                <>
+                  <Typography>Marked: {new Date(attendance.timestamp).toLocaleString()}</Typography>
+                  <Typography>Method: {attendance.method}</Typography>
+                </>
+              )}
+
+              {!attendance && error && (
+                <Typography color="error" sx={{ mt: 1, fontWeight: 600 }}>
+                  Reason: {error}
+                </Typography>
+              )}
+            </Box>
           )}
 
           {error && <Typography color="error">{error}</Typography>}
@@ -303,53 +341,53 @@ export default function AttendancePage() {
             }}
           >
             {Array.from({
-  length: new Date(year, month, 0).getDate(),
-}).map((_, i) => {
-  const day = i + 1;
+              length: new Date(year, month, 0).getDate(),
+            }).map((_, i) => {
+              const day = i + 1;
 
-  // Create the date without time
-  const checkDate = new Date(year, month - 1, day);
-  checkDate.setHours(0, 0, 0, 0);
+              // Create the date without time
+              const checkDate = new Date(year, month - 1, day);
+              checkDate.setHours(0, 0, 0, 0);
 
-  // Normalize today date
-  const todayDate = new Date();
-  todayDate.setHours(0, 0, 0, 0);
+              // Normalize today date
+              const todayDate = new Date();
+              todayDate.setHours(0, 0, 0, 0);
 
-  const dateStr = checkDate.toISOString().slice(0, 10);
-  const present = monthDays.includes(dateStr);
+              const dateStr = checkDate.toISOString().slice(0, 10);
+              const present = monthDays.includes(dateStr);
 
-  const isToday = checkDate.getTime() === todayDate.getTime();
-  const isFuture = checkDate.getTime() > todayDate.getTime();
+              const isToday = checkDate.getTime() === todayDate.getTime();
+              const isFuture = checkDate.getTime() > todayDate.getTime();
 
-  let bgColor = "#d32f2f"; // 🔴 Absent
+              let bgColor = "#d32f2f"; // 🔴 Absent
 
-  if (present) bgColor = "#2e7d32"; // 🟢 Present
-  if (isFuture) bgColor = "#1976d2"; // 🔵 Future
+              if (present) bgColor = "#2e7d32"; // 🟢 Present
+              if (isFuture) bgColor = "#1976d2"; // 🔵 Future
 
-  const borderStyle = isToday ? "3px solid #0288d1" : "none";
+              const borderStyle = isToday ? "3px solid #0288d1" : "none";
 
-  return (
-    <Box
-      key={day}
-      sx={{
-        p: 1.3,
-        borderRadius: 2,
-        textAlign: "center",
-        fontWeight: 600,
-        bgcolor: bgColor,
-        color: "white",
-        border: borderStyle,
-        transition: "0.2s",
-        "&:hover": {
-          boxShadow: "0 0 8px rgba(0,0,0,0.2)",
-          transform: "scale(1.05)",
-        },
-      }}
-    >
-      {day}
-    </Box>
-  );
-})}
+              return (
+                <Box
+                  key={day}
+                  sx={{
+                    p: 1.3,
+                    borderRadius: 2,
+                    textAlign: "center",
+                    fontWeight: 600,
+                    bgcolor: bgColor,
+                    color: "white",
+                    border: borderStyle,
+                    transition: "0.2s",
+                    "&:hover": {
+                      boxShadow: "0 0 8px rgba(0,0,0,0.2)",
+                      transform: "scale(1.05)",
+                    },
+                  }}
+                >
+                  {day}
+                </Box>
+              );
+            })}
 
           </Box>
         )}
